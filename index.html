@@ -1,0 +1,161 @@
+<html>
+
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+
+<script type="text/javascript">
+var canvas = false;
+var context =false;
+var width = 0; 
+var height=0;
+
+$(document).ready(function(){
+    canvas = document.getElementById("myCanvas");
+    context= canvas.getContext('2d')
+    width = canvas.width; 
+    height=canvas.height;
+    context.fillStyle = "#000";
+    context.fillRect(0,0,width,height)
+    setTimeout("render()",0);
+});
+
+
+function hslToRgb(h, s, l){//{{{
+    var r, g, b;
+
+    if(s == 0){
+        r = g = b = l; // achromatic
+    }else{
+        function hue2rgb(p, q, t){
+            if(t < 0) t += 1;
+            if(t > 1) t -= 1;
+            if(t < 1/6) return p + (q - p) * 6 * t;
+            if(t < 1/2) return q;
+            if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        }
+
+        var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        var p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+    }
+    return [r * 255, g * 255, b * 255];
+}//}}}
+
+function coord2px(x,y){
+    var val = 1;
+    x+=val;
+    x/=val*2;
+    y+=val;
+    y/=val*2;
+    x*=width;
+    y*=height;
+    x>>=0;
+    y>>=0;
+    return [x,y]
+}
+
+function getColor(x,y){
+    var loc = coord2px(x,y);
+    if(loc[0]==null)
+        return [0,0,0] 
+    return context.getImageData(loc[0],loc[1],1,1).data;
+}
+
+function setColor(x,y,c){
+    var loc = coord2px(x,y);
+    if(loc[0]==null) return
+    
+    var imgd = context.getImageData(loc[0],loc[1],1,1)
+    imgd.data[0]=c[0];
+    imgd.data[1]=c[1];
+    imgd.data[2]=c[2];
+    imgd.data[3]=255;
+    context.putImageData(imgd,loc[0],loc[1])
+}
+function joinColors(c1,c2){
+    return [
+        (c1[0]+c2[0])/2,
+        (c1[1]+c2[1])/2,
+        (c1[2]+c2[2])/2
+    ]
+}
+
+
+
+
+//////////////
+function genCoefs(){
+    return [Math.random()*2-1,Math.random()*2-1,Math.random()*2-1,
+            Math.random()*2-1,Math.random()*2-1,Math.random()*2-1]
+}
+
+var V = [//[w_k, V_k]
+     [0.5, function (x,y) { return [x,y]; }]
+    ,[0.5, function (x,y) { return [Math.sin(y*3), Math.sin(x*3)]; }]
+    //,[0.5, function (x,y) { return [Math.cos(x), Math.cos(y)]; }]
+    //[1, function (x,y) { var mag = x*x+y*y; return [x/mag,y/mag]; }]
+];
+
+var table = [
+    [.2, genCoefs()        , [0,255,255]],
+    [.2, genCoefs()        , [255,0,255]],
+    [.2, genCoefs()        , [255,255,0]],
+    [.1, genCoefs()        , [0,0,255]],
+    [.1, genCoefs()        , [255,0,0]],
+    [.1, genCoefs()        , [0,255,0]],
+    [.1, genCoefs()        , [255,255,255]],
+];
+
+function randJ(){
+    r = Math.random()
+    for(var key in table){
+        if(r < table[key][0])
+            return key
+        r -= table[key][0]
+    }
+    return -1;
+}
+
+function F(j,x,y){
+    var coefs = table[j][1]
+    var outx=0
+    var outy=0
+    for(var w in V){
+        wk = V[w][0]
+        Vk = V[w][1]
+        var pos = Vk(coefs[0]*x+coefs[1]*y+coefs[2], coefs[3]*x+coefs[4]*y+coefs[5])
+        outx += wk*pos[0]
+        outy += wk*pos[1]
+    }
+    return [outx, outy]
+}
+//////////////////////
+function render(){
+    for(var point = 0 ; point < 100 ; point++){
+        px = Math.random()*2-1
+        py = Math.random()*2-1
+        pc = getColor(px,py)
+        for(var i = 0; i < 2; i ++){
+            j = randJ()
+            var pos = F(j,px,py)
+            px = pos[0];
+            py = pos[1];
+            pc = joinColors(pc,table[j][2])
+        }
+        c = joinColors(pc,getColor(px,py))
+        setColor(px,py,c)
+    }
+    setTimeout("render()",0);
+}
+
+
+
+</script>
+</head>
+<body>
+<canvas id="myCanvas" width="512" height="512"></canvas>
+</body>
+</html>
